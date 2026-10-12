@@ -57,4 +57,4 @@ Contribuições são sempre bem-vindas! Sinta-se à vontade para abrir issues co
 ---
 
 ## 📄 Licença
-Este projeto está distribuído sob a licença MIT.
+Este projeto está licenciado sob a licença GPL-2.0 — consulte o arquivo de licença para mais detalhes.
