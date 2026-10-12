@@ -1,9 +1,11 @@
-OBS Studio - Plugin Preview PGM & Audio Mixer
+#  Plugin Preview PGM
 O Preview PGM é um plugin desenvolvido para o OBS Studio que cria uma janela flutuante e dedicada para o monitoramento em tempo real da saída de Programa (PGM) combinada com o medidor e controle do Mixer de Áudio de uma fonte específica escolhida pelo usuário.
 
 Além disso, o plugin permite definir em qual monitor a janela será exibida em tela cheia, tornando-o uma solução excelente para criar monitores de referência independentes para o operador de áudio ou para o diretor de corte.
 
-🚀 Principais Funcionalidades
+---
+
+## 🚀 Principais Funcionalidades
 Janela de PGM Dedicada: Visualização em tempo real da saída final da transmissão (PGM).
 
 Exibição em Tela Cheia Configurável: Escolha exatamente em qual monitor a janela do PGM será projetada em modo full screen.
@@ -14,22 +16,27 @@ Seleção de Fonte Personalizada: Escolha qual canal ou fonte de áudio específ
 
 Ideal para Monitor de Referência: Perfeito para ser enviado a um segundo ou terceiro monitor focado no operador de som da live.
 
-🖥️ Compatibilidade
-Sistema Operacional	Suportado	Notas
-Windows 10/11 (64-bit)	✅	Suporte exclusivo no momento
-Requisito de Versão: Testado e otimizado para OBS Studio 31.0+ em sistemas 64-bit.
+---
 
+## 🖥️ Compatibilidade
+| Sistema Operacional | Suportado | Notas |
+| :--- | :---: | :--- |
+| **Windows 10/11** (64-bit) | ✅ | Suporte exclusivo no momento |
 
-📦 Instalação
-Baixe a versão mais recente do plugin na aba Releases.
+---
 
-Extraia o conteúdo do arquivo ZIP baixado.
+## 📦 Como Instalar (Windows)
 
-Copie os arquivos extraídos para a pasta de plugins do seu OBS Studio (geralmente localizada em C:\Program Files\obs-studio no Windows).
+1. Acesse a seção de **[Releases](https://github.com/dablofilmes/PREVIEW-PGM/releases)** e baixe a versão mais recente em formato `.zip`.
+2. Extraia o conteúdo do arquivo `.zip`.
+3. Copie as pastas extraídas (`obs-plugins` e `data`) e cole na pasta raiz do seu OBS Studio:
+   - Caminho padrão: `C:\Program Files\obs-studio\`
+4. Se solicitado pelo Windows, confirme a mesclagem das pastas.
+5. Reinicie o OBS Studio.
 
-Reinicie o OBS Studio.
+---
 
-💡 Como Usar
+## 💡 Como Usar
 Abra o OBS Studio.
 
 No menu superior, vá em Ferramentas (Tools) e clique em Abrir Preview PGM.
@@ -42,8 +49,12 @@ Selecione em qual monitor a janela deve ser exibida ao entrar em modo Tela Cheia
 
 Posicione ou ative a tela cheia no monitor de referência escolhido.
 
-🛠️ Contribuindo
+---
+
+## 🛠️ Contribuindo
 Contribuições são sempre bem-vindas! Sinta-se à vontade para abrir issues com relatos de bugs ou sugestões de melhorias, bem como enviar pull requests.
 
-📄 Licença
+---
+
+## 📄 Licença
 Este projeto está distribuído sob a licença MIT.
