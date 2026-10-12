@@ -1,59 +1,49 @@
-# OBS Plugin Template
+OBS Studio - Plugin Preview PGM & Audio Mixer
+O Preview PGM é um plugin desenvolvido para o OBS Studio que cria uma janela flutuante e dedicada para o monitoramento em tempo real da saída de Programa (PGM) combinada com o medidor e controle do Mixer de Áudio de uma fonte específica escolhida pelo usuário.
 
-## Introduction
+Além disso, o plugin permite definir em qual monitor a janela será exibida em tela cheia, tornando-o uma solução excelente para criar monitores de referência independentes para o operador de áudio ou para o diretor de corte.
 
-The plugin template is meant to be used as a starting point for OBS Studio plugin development. It includes:
+🚀 Principais Funcionalidades
+Janela de PGM Dedicada: Visualização em tempo real da saída final da transmissão (PGM).
 
-* Boilerplate plugin source code
-* A CMake project file
-* GitHub Actions workflows and repository actions
+Exibição em Tela Cheia Configurável: Escolha exatamente em qual monitor a janela do PGM será projetada em modo full screen.
 
-## Supported Build Environments
+Mixer de Áudio Integrado: Exibe o medidor de nível de áudio (VU meter) da fonte de áudio selecionada diretamente na interface do monitor.
 
-| Platform  | Tool   |
-|-----------|--------|
-| Windows   | Visual Studio 17 2022 |
-| macOS     | XCode 16.0 |
-| Windows, macOS  | CMake 3.30.5 |
-| Ubuntu 24.04 | CMake 3.28.3 |
-| Ubuntu 24.04 | `ninja-build` |
-| Ubuntu 24.04 | `pkg-config`
-| Ubuntu 24.04 | `build-essential` |
+Seleção de Fonte Personalizada: Escolha qual canal ou fonte de áudio específica você deseja monitorar lado a lado com o vídeo.
 
-## Quick Start
+Ideal para Monitor de Referência: Perfeito para ser enviado a um segundo ou terceiro monitor focado no operador de som da live.
 
-An absolute bare-bones [Quick Start Guide](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide) is available in the wiki.
+🖥️ Compatibilidade
+Sistema Operacional	Suportado	Notas
+Windows 10/11 (64-bit)	✅	Suporte exclusivo no momento
+Requisito de Versão: Testado e otimizado para OBS Studio 31.0+ em sistemas 64-bit.
 
-## Documentation
 
-All documentation can be found in the [Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+📦 Instalação
+Baixe a versão mais recente do plugin na aba Releases.
 
-Suggested reading to get up and running:
+Extraia o conteúdo do arquivo ZIP baixado.
 
-* [Getting started](https://github.com/obsproject/obs-plugintemplate/wiki/Getting-Started)
-* [Build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements)
-* [Build system options](https://github.com/obsproject/obs-plugintemplate/wiki/CMake-Build-System-Options)
+Copie os arquivos extraídos para a pasta de plugins do seu OBS Studio (geralmente localizada em C:\Program Files\obs-studio no Windows).
 
-## GitHub Actions & CI
+Reinicie o OBS Studio.
 
-Default GitHub Actions workflows are available for the following repository actions:
+💡 Como Usar
+Abra o OBS Studio.
 
-* `push`: Run for commits or tags pushed to `master` or `main` branches.
-* `pr-pull`: Run when a Pull Request has been pushed or synchronized.
-* `dispatch`: Run when triggered by the workflow dispatch in GitHub's user interface.
-* `build-project`: Builds the actual project and is triggered by other workflows.
-* `check-format`: Checks CMake and plugin source code formatting and is triggered by other workflows.
+No menu superior, vá em Ferramentas (Tools) e clique em Abrir Preview PGM.
 
-The workflows make use of GitHub repository actions (contained in `.github/actions`) and build scripts (contained in `.github/scripts`) which are not needed for local development, but might need to be adjusted if additional/different steps are required to build the plugin.
+Nas configurações da janela:
 
-### Retrieving build artifacts
+Escolha qual fonte de áudio você deseja acompanhar no mixer integrado.
 
-Successful builds on GitHub Actions will produce build artifacts that can be downloaded for testing. These artifacts are commonly simple archives and will not contain package installers or installation programs.
+Selecione em qual monitor a janela deve ser exibida ao entrar em modo Tela Cheia (Full Screen).
 
-### Building a Release
+Posicione ou ative a tela cheia no monitor de referência escolhido.
 
-To create a release, an appropriately named tag needs to be pushed to the `main`/`master` branch using semantic versioning (e.g., `12.3.4`, `23.4.5-beta2`). A draft release will be created on the associated repository with generated installer packages or installation programs attached as release artifacts.
+🛠️ Contribuindo
+Contribuições são sempre bem-vindas! Sinta-se à vontade para abrir issues com relatos de bugs ou sugestões de melhorias, bem como enviar pull requests.
 
-## Signing and Notarizing on macOS
-
-Basic concepts of codesigning and notarization on macOS are explained in the correspodning [Wiki article](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS) which has a specific section for the [GitHub Actions setup](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS#setting-up-code-signing-for-github-actions).
+📄 Licença
+Este projeto está distribuído sob a licença MIT.
