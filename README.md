@@ -47,7 +47,7 @@ Escolha qual fonte de áudio você deseja acompanhar no mixer integrado.
 
 Selecione em qual monitor a janela deve ser exibida ao entrar em modo Tela Cheia (Full Screen).
 
-Posicione ou ative a tela cheia no monitor de referência escolhido. Para sair do modo tela cheio pressione ESC.
+Posicione ou ative a tela cheia no monitor de referência escolhido. Para sair do modo Tela Cheia (Full Screen) pressione ESC.
 
 ---
 
