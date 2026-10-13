@@ -4,8 +4,11 @@
 #include <plugin-support.h>
 
 #include <QApplication>
+#include <QColor>
+#include <QVariant>
 #include <QMainWindow>
 #include <QWidget>
+#include <QPalette>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -50,7 +53,7 @@ OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 // ------------------------------------------------------------
-// Janela de vídeo: renderiza a cena atual do programa do OBS.
+// Janela de vÃ­deo: renderiza a cena atual do programa do OBS.
 // ------------------------------------------------------------
 
 class PgmVideoWidget : public QWidget {
@@ -60,7 +63,8 @@ public:
     {
         setAttribute(Qt::WA_NativeWindow);
         setMinimumSize(480, 270);
-        setStyleSheet("background-color: #080808;");
+        setAutoFillBackground(true);
+        setBackgroundRole(QPalette::Window);
     }
 
     ~PgmVideoWidget() override
@@ -95,6 +99,31 @@ protected:
 private:
     obs_display_t *display = nullptr;
 
+    uint32_t get_obs_theme_background_color() const
+    {
+        QColor color = palette().color(QPalette::Window);
+        auto *obsWindow = static_cast<QWidget *>(obs_frontend_get_main_window());
+
+        if (obsWindow) {
+            const auto widgets = obsWindow->findChildren<QWidget *>();
+
+            for (QWidget *widget : widgets) {
+                if (widget->metaObject()->indexOfProperty("displayBackgroundColor") >= 0) {
+                    const QVariant value = widget->property("displayBackgroundColor");
+
+                    if (value.isValid() && value.canConvert<QColor>()) {
+                        color = value.value<QColor>();
+                        break;
+                    }
+                }
+            }
+        }
+
+        return static_cast<uint32_t>(color.red()) |
+               (static_cast<uint32_t>(color.green()) << 8) |
+               (static_cast<uint32_t>(color.blue()) << 16) |
+               (static_cast<uint32_t>(color.alpha()) << 24);
+    }
     void create_display()
     {
         if (display || !winId())
@@ -109,7 +138,8 @@ private:
         info.format = GS_BGRA;
         info.zsformat = GS_ZS_NONE;
 
-        display = obs_display_create(&info, 0xFF080808);
+        const uint32_t backgroundColor = get_obs_theme_background_color();
+        display = obs_display_create(&info, backgroundColor);
 
         if (!display) {
             blog(LOG_ERROR, "[PREVIEW PGM] Falha ao criar display.");
@@ -117,8 +147,14 @@ private:
         }
 
         obs_display_add_draw_callback(display, draw_frame, this);
+        auto *themeTimer = new QTimer(this);
+        connect(themeTimer, &QTimer::timeout, this, [this]() {
+            if (display)
+                obs_display_set_background_color(display, get_obs_theme_background_color());
+        });
+        themeTimer->start(500);
 
-        blog(LOG_INFO, "[PREVIEW PGM] Display de vídeo criado.");
+        blog(LOG_INFO, "[PREVIEW PGM] Display de vÃ­deo criado.");
     }
 
     
@@ -129,49 +165,34 @@ static void draw_frame(void *data, uint32_t cx, uint32_t cy)
     if (!cx || !cy)
         return;
 
-    obs_source_t *source = obs_frontend_get_current_scene();
-
-    if (!source)
+    struct obs_video_info video_info{};
+    if (!obs_get_video_info(&video_info))
         return;
 
-    const uint32_t source_width = obs_source_get_width(source);
-    const uint32_t source_height = obs_source_get_height(source);
+    const uint32_t source_width = video_info.base_width;
+    const uint32_t source_height = video_info.base_height;
 
     if (source_width && source_height) {
-        const float scaleX =
-            static_cast<float>(cx) / source_width;
-
-        const float scaleY =
-            static_cast<float>(cy) / source_height;
-
-        // Usa a menor escala para preservar a proporção 16:9.
+        const float scaleX = static_cast<float>(cx) / source_width;
+        const float scaleY = static_cast<float>(cy) / source_height;
         const float scale = std::min(scaleX, scaleY);
-
         const float renderedWidth = source_width * scale;
         const float renderedHeight = source_height * scale;
-
         const float offsetX = (cx - renderedWidth) * 0.5f;
         const float offsetY = (cy - renderedHeight) * 0.5f;
 
         gs_projection_push();
-
-        gs_ortho(
-            0.0f, static_cast<float>(cx),
-            0.0f, static_cast<float>(cy),
-            -100.0f, 100.0f);
-
+        gs_ortho(0.0f, static_cast<float>(cx), 0.0f, static_cast<float>(cy), -100.0f, 100.0f);
         gs_matrix_push();
-
         gs_matrix_translate3f(offsetX, offsetY, 0.0f);
         gs_matrix_scale3f(scale, scale, 1.0f);
-
-        obs_source_video_render(source);
-
+        struct gs_rect scissor = { static_cast<int>(offsetX), static_cast<int>(offsetY), static_cast<int>(renderedWidth), static_cast<int>(renderedHeight) };
+        gs_set_scissor_rect(&scissor);
+        obs_render_main_texture();
+        gs_set_scissor_rect(nullptr);
         gs_matrix_pop();
         gs_projection_pop();
     }
-
-    obs_source_release(source);
 }
 
 };
@@ -194,15 +215,15 @@ setMaximumHeight(100);
         connect(timer, &QTimer::timeout, this, [this]() {
             
 for (int i = 0; i < 2; ++i) {
-    // Subida rápida para acompanhar o Mixer do OBS.
+    // Subida rÃ¡pida para acompanhar o Mixer do OBS.
     if (target_[i] >= level_[i]) {
         level_[i] = target_[i];
     } else {
-        // Descida suave, com resposta mais rápida.
+        // Descida suave, com resposta mais rÃ¡pida.
         level_[i] += (target_[i] - level_[i]) * 0.45f;
     }
 
-    // Retenção e queda gradual do pico.
+    // RetenÃ§Ã£o e queda gradual do pico.
     if (target_[i] >= peak_[i]) {
         peak_[i] = target_[i];
         peakHold_[i] = 25;
@@ -246,7 +267,7 @@ protected:
     {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, false);
-        p.fillRect(rect(), QColor("#151515"));
+        p.fillRect(rect(), palette().color(QPalette::Window));
 
         const int leftMargin = 38;
         const int rightMargin = 10;
@@ -261,7 +282,7 @@ protected:
         p.setFont(QFont("Arial", 8));
 
         for (int ch = 0; ch < 2; ++ch) {
-            p.setPen(QColor("#CCCCCC"));
+            p.setPen(palette().color(QPalette::WindowText));
             p.drawText(2, ys[ch] + 11, ch == 0 ? "L" : "R");
 
             const int y = ys[ch];
@@ -270,7 +291,7 @@ protected:
             p.fillRect(leftMargin, y, barWidth, barHeight,
                        QColor("#292929"));
 
-            // Escala: -60 dB até 0 dB.
+            // Escala: -60 dB atÃ© 0 dB.
             auto xForDb = [&](float db) {
                 return leftMargin + qRound(
                     ((db + 60.0f) / 60.0f) * barWidth);
@@ -290,7 +311,7 @@ protected:
                        QColor("#E04444"));
 
             
-            // Preenchimento acompanha o nível exibido.
+            // Preenchimento acompanha o nÃ­vel exibido.
             const int levelX = std::clamp(
                 xForDb(level_[ch]),
                 leftMargin,
@@ -333,7 +354,7 @@ protected:
             }
 
 
-            // Segmentação visual.
+            // SegmentaÃ§Ã£o visual.
             p.setPen(QColor("#151515"));
             for (int x = leftMargin + 5;
                  x < leftMargin + barWidth; x += 6) {
@@ -342,12 +363,12 @@ protected:
 
             // Marcador de pico.
             const int peakX = xForDb(peak_[ch]);
-            p.setPen(QPen(Qt::white, 2));
+            p.setPen(QPen(palette().color(QPalette::WindowText), 2));
             p.drawLine(peakX, y, peakX, y + barHeight - 1);
         }
 
-        // Marcações de -60 a 0 dB, de 6 em 6.
-        p.setPen(QColor("#BDBDBD"));
+        // MarcaÃ§Ãµes de -60 a 0 dB, de 6 em 6.
+        p.setPen(palette().color(QPalette::WindowText));
 
         for (int db = -60; db <= 0; db += 6) {
             const int x = leftMargin + qRound(
@@ -381,6 +402,7 @@ public:
     {
         setWindowTitle("PREVIEW PGM");
         resize(1100, 700);
+        setAutoFillBackground(true);
 
         auto *central = new QWidget(this);
         auto *layout = new QVBoxLayout(central);
@@ -390,10 +412,7 @@ public:
         auto *header = new QHBoxLayout();
 
         auto *title = new QLabel("PREVIEW PGM", central);
-        title->setStyleSheet(
-            "color: white; font-size: 22px; font-weight: bold;");
-
-        live_label = new QLabel("● PGM ATIVO", central);
+        live_label = new QLabel("\u25CF PGM ATIVO", central);
         live_label->setStyleSheet(
             "color: #36e078; font-size: 16px; font-weight: bold;");
 
@@ -409,13 +428,8 @@ for (QScreen *screen : QGuiApplication::screens()) {
 }
 
 project_button = new QPushButton("Projetar em tela cheia", central);
-update_button = new QPushButton("Verificar atualizações", central);
+update_button = new QPushButton("Verificar atualizaÃ§Ãµes", central);
 update_button->setVisible(false);
-
-update_button->setStyleSheet(
-    "QPushButton { background: #174a2b; color: white; padding: 8px 16px; "
-    "border: 1px solid #287a45; border-radius: 4px; }"
-    "QPushButton:hover { background: #226638; }");
 
 connect(update_button, &QPushButton::clicked, this, [this]() {
     QDesktopServices::openUrl(
@@ -423,11 +437,6 @@ connect(update_button, &QPushButton::clicked, this, [this]() {
 });
 close_fullscreen_button = new QPushButton("Fechar Tela Cheia", central);
 close_fullscreen_button->setVisible(false);
-close_fullscreen_button->setStyleSheet(
-    "QPushButton { background: #151515; color: white; padding: 8px 16px; "
-    "border: 1px solid #444; border-radius: 4px; }"
-    "QPushButton:hover { background: #292929; }");
-
 header->addWidget(title);
 header->addStretch();
 header->addWidget(monitor_combo);
@@ -449,56 +458,27 @@ connect(close_fullscreen_button, &QPushButton::clicked,
         video = new PgmVideoWidget(central);
 
 
-        audio_title = new QLabel("ÁUDIO DO PROGRAMA", central);
-source_label = new QLabel("Fonte de áudio para medição:", central);
-
-source_label->setStyleSheet("color: white;");
+source_label = new QLabel("FONTE DE ÁUDIO", central);
 
 audio_source_combo = new QComboBox(central);
 audio_source_combo->setMinimumWidth(260);
 
-audio_source_combo->setStyleSheet(
-    "QComboBox {"
-    "background: #292929;"
-    "color: white;"
-    "padding: 6px;"
-    "border: 1px solid #555;"
-    "}"
-    "QComboBox QAbstractItemView {"
-    "background: #292929;"
-    "color: white;"
-    "selection-background-color: #2675bf;"
-    "}");
-
 refresh_sources_button = new QPushButton("Atualizar fontes", central);
-
-refresh_sources_button->setStyleSheet(
-    "QPushButton {"
-    "background: #333333;"
-    "color: white;"
-    "padding: 6px 12px;"
-    "border: 1px solid #555;"
-    "}");
 
 auto *sourceLayout = new QHBoxLayout();
 sourceLayout->addWidget(source_label);
 sourceLayout->addWidget(audio_source_combo, 1);
 sourceLayout->addWidget(refresh_sources_button);
 
-        audio_title->setStyleSheet(
-            "color: white; font-size: 13px; font-weight: bold;");
-
         audio_meter = new PgmAudioMeter(central);
 
 
         layout->addLayout(header);
         layout->addWidget(video, 1);
-        layout->addWidget(audio_title);
 layout->addLayout(sourceLayout);
 layout->addWidget(audio_meter);
 
         
-central->setStyleSheet("background-color: #151515;");
 setCentralWidget(central);
 
 connect(
@@ -519,13 +499,13 @@ connect(
 
 atualizar_fontes_audio();
 
-// Mantém o indicador coerente com o estado da transmissão.
+// MantÃ©m o indicador coerente com o estado da transmissÃ£o.
 auto *timer = new QTimer(this);
 connect(timer, &QTimer::timeout, this, [this]() {
     const bool streaming = obs_frontend_streaming_active();
 
     live_label->setText(
-        streaming ? "● AO VIVO" : "● PGM ATIVO");
+        streaming ? "\u25CF AO VIVO" : "\u25CF PGM ATIVO");
 
     live_label->setStyleSheet(
         streaming
@@ -550,7 +530,6 @@ private:
     QLabel *live_label = nullptr;
     PgmAudioMeter *audio_meter = nullptr;
     PgmVideoWidget *video = nullptr;
-    QLabel *audio_title = nullptr;
     QLabel *source_label = nullptr;
     QPushButton *project_button = nullptr;
     QPushButton *update_button = nullptr;
@@ -673,7 +652,7 @@ void verificarAtualizacao()
 
         WinHttpCloseHandle(request);
     } else {
-        blog(LOG_WARNING, "[PREVIEW PGM] Falha ao criar requisição WinHTTP.");
+        blog(LOG_WARNING, "[PREVIEW PGM] Falha ao criar requisiÃ§Ã£o WinHTTP.");
     }
 
     if (connection)
@@ -682,7 +661,7 @@ void verificarAtualizacao()
     WinHttpCloseHandle(session);
 
     if (response.isEmpty()) {
-        blog(LOG_WARNING, "[PREVIEW PGM] Resposta vazia ao verificar atualizações.");
+        blog(LOG_WARNING, "[PREVIEW PGM] Resposta vazia ao verificar atualizaÃ§Ãµes.");
         return;
     }
 
@@ -692,7 +671,7 @@ void verificarAtualizacao()
 
     if (parseError.error != QJsonParseError::NoError ||
         !document.isObject()) {
-        blog(LOG_WARNING, "[PREVIEW PGM] Resposta inválida do GitHub.");
+        blog(LOG_WARNING, "[PREVIEW PGM] Resposta invÃ¡lida do GitHub.");
         return;
     }
 
@@ -721,7 +700,7 @@ void verificarAtualizacao()
 
     if (currentVersion.isNull() || latestVersion.isNull()) {
         blog(LOG_WARNING,
-             "[PREVIEW PGM] Não foi possível comparar versões.");
+             "[PREVIEW PGM] NÃ£o foi possÃ­vel comparar versÃµes.");
         return;
     }
 
@@ -729,18 +708,18 @@ void verificarAtualizacao()
         latest_release_url = releaseUrl;
 
         update_button->setText(
-            QString("Atualizar (%1 disponível)").arg(latestTag));
+            QString("Atualizar (%1 disponÃ­vel)").arg(latestTag));
 
         update_button->setToolTip(
-            QString("Sua versão: %1 | Nova versão: %2")
+            QString("Sua versÃ£o: %1 | Nova versÃ£o: %2")
                 .arg(QString::fromUtf8(PLUGIN_VERSION), latestTag));
 
         update_button->setVisible(true);
 
-        blog(LOG_INFO, "[PREVIEW PGM] Nova versão disponível: %s",
+        blog(LOG_INFO, "[PREVIEW PGM] Nova versÃ£o disponÃ­vel: %s",
              latestTag.toUtf8().constData());
     } else {
-        blog(LOG_INFO, "[PREVIEW PGM] Plugin atualizado. Versão atual: %s",
+        blog(LOG_INFO, "[PREVIEW PGM] Plugin atualizado. VersÃ£o atual: %s",
              currentText.toUtf8().constData());
     }
 }
@@ -774,17 +753,16 @@ void projetarTelaCheia()
 
     projecting = true;
 
-    // No modo de projeção, mantém somente título, status, vídeo,
-    // medidores e o botão para sair da tela cheia.
+    // No modo de projeÃ§Ã£o, mantÃ©m somente tÃ­tulo, status, vÃ­deo,
+    // medidores e o botÃ£o para sair da tela cheia.
     monitor_combo->hide();
     project_button->hide();
-    audio_title->hide();
     source_label->hide();
     audio_source_combo->hide();
     refresh_sources_button->hide();
     close_fullscreen_button->show();
 
-    // Move a projeção para o monitor escolhido na janela de controle.
+    // Move a projeÃ§Ã£o para o monitor escolhido na janela de controle.
     showNormal();
     setGeometry(screen->geometry());
     showFullScreen();
@@ -800,7 +778,6 @@ void restaurarJanela()
     close_fullscreen_button->hide();
     monitor_combo->show();
     project_button->show();
-    audio_title->show();
     source_label->show();
     audio_source_combo->show();
     refresh_sources_button->show();
@@ -908,7 +885,7 @@ void conectar_audio()
 
     if (selected.isEmpty() || selected == "Nenhuma fonte") {
         blog(LOG_INFO,
-             "[PREVIEW PGM] Medição de áudio desativada.");
+             "[PREVIEW PGM] MediÃ§Ã£o de Ã¡udio desativada.");
         return;
     }
 
@@ -918,7 +895,7 @@ void conectar_audio()
 
     if (!audio_meter_handle) {
         blog(LOG_WARNING,
-             "[PREVIEW PGM] Não foi possível conectar a fonte: %s",
+             "[PREVIEW PGM] NÃ£o foi possÃ­vel conectar a fonte: %s",
              selected.toUtf8().constData());
     } else {
         blog(LOG_INFO,
@@ -995,7 +972,7 @@ static void abrir_preview_pgm(void *data)
 bool obs_module_load(void)
 {
     blog(LOG_INFO,
-         "[PREVIEW PGM] Plugin carregado - versão %s",
+         "[PREVIEW PGM] Plugin carregado - versÃ£o %s",
          PLUGIN_VERSION);
 
     obs_frontend_add_tools_menu_item(
