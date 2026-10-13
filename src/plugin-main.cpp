@@ -30,9 +30,21 @@
 #include <QShortcut>
 #include <QKeySequence>
 #include <QRect>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QVersionNumber>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <winhttp.h>
 
 #include <algorithm>
 #include <cstdint>
+
+#pragma comment(lib, "winhttp.lib")
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
@@ -396,30 +408,51 @@ for (QScreen *screen : QGuiApplication::screens()) {
         QString::number(screen->geometry().height()) + ")");
 }
 
-auto *projectButton =
-    new QPushButton("Projetar em tela cheia", central);
+project_button = new QPushButton("Projetar em tela cheia", central);
+update_button = new QPushButton("Verificar atualizações", central);
+update_button->setVisible(false);
+
+update_button->setStyleSheet(
+    "QPushButton { background: #174a2b; color: white; padding: 8px 16px; "
+    "border: 1px solid #287a45; border-radius: 4px; }"
+    "QPushButton:hover { background: #226638; }");
+
+connect(update_button, &QPushButton::clicked, this, [this]() {
+    QDesktopServices::openUrl(
+        QUrl("https://github.com/dablofilmes/PREVIEW-PGM/releases"));
+});
+close_fullscreen_button = new QPushButton("Fechar Tela Cheia", central);
+close_fullscreen_button->setVisible(false);
+close_fullscreen_button->setStyleSheet(
+    "QPushButton { background: #151515; color: white; padding: 8px 16px; "
+    "border: 1px solid #444; border-radius: 4px; }"
+    "QPushButton:hover { background: #292929; }");
 
 header->addWidget(title);
 header->addStretch();
 header->addWidget(monitor_combo);
-header->addWidget(projectButton);
+header->addWidget(update_button);
+header->addWidget(project_button);
+header->addWidget(close_fullscreen_button);
 header->addWidget(live_label);
 
-connect(projectButton, &QPushButton::clicked,
+connect(project_button, &QPushButton::clicked,
         this, [this]() {
     projetarTelaCheia();
 });
 
+connect(close_fullscreen_button, &QPushButton::clicked,
+        this, [this]() {
+    restaurarJanela();
+});
 
         video = new PgmVideoWidget(central);
 
 
-        auto *audio_title =
-            new QLabel("ÁUDIO DO PROGRAMA", central);
-auto *sourceLabel =
-    new QLabel("Fonte de áudio para medição:", central);
+        audio_title = new QLabel("ÁUDIO DO PROGRAMA", central);
+source_label = new QLabel("Fonte de áudio para medição:", central);
 
-sourceLabel->setStyleSheet("color: white;");
+source_label->setStyleSheet("color: white;");
 
 audio_source_combo = new QComboBox(central);
 audio_source_combo->setMinimumWidth(260);
@@ -437,10 +470,9 @@ audio_source_combo->setStyleSheet(
     "selection-background-color: #2675bf;"
     "}");
 
-auto *refreshSourcesButton =
-    new QPushButton("Atualizar fontes", central);
+refresh_sources_button = new QPushButton("Atualizar fontes", central);
 
-refreshSourcesButton->setStyleSheet(
+refresh_sources_button->setStyleSheet(
     "QPushButton {"
     "background: #333333;"
     "color: white;"
@@ -449,9 +481,9 @@ refreshSourcesButton->setStyleSheet(
     "}");
 
 auto *sourceLayout = new QHBoxLayout();
-sourceLayout->addWidget(sourceLabel);
+sourceLayout->addWidget(source_label);
 sourceLayout->addWidget(audio_source_combo, 1);
-sourceLayout->addWidget(refreshSourcesButton);
+sourceLayout->addWidget(refresh_sources_button);
 
         audio_title->setStyleSheet(
             "color: white; font-size: 13px; font-weight: bold;");
@@ -478,7 +510,7 @@ connect(
     });
 
 connect(
-    refreshSourcesButton,
+    refresh_sources_button,
     &QPushButton::clicked,
     this,
     [this]() {
@@ -505,6 +537,7 @@ connect(timer, &QTimer::timeout, this, [this]() {
 timer->start(500);
 
 configurarAtalhoEsc();
+        verificarAtualizacao();
 }
 
     
@@ -517,6 +550,13 @@ private:
     QLabel *live_label = nullptr;
     PgmAudioMeter *audio_meter = nullptr;
     PgmVideoWidget *video = nullptr;
+    QLabel *audio_title = nullptr;
+    QLabel *source_label = nullptr;
+    QPushButton *project_button = nullptr;
+    QPushButton *update_button = nullptr;
+    QString latest_release_url;
+    QPushButton *close_fullscreen_button = nullptr;
+    QPushButton *refresh_sources_button = nullptr;
 
     QComboBox *audio_source_combo = nullptr;
     obs_volmeter_t *audio_meter_handle = nullptr;
@@ -542,6 +582,169 @@ QComboBox *monitor_combo = nullptr;
 QRect previousGeometry;
 bool projecting = false;
 bool wasMaximized = false;
+
+
+void verificarAtualizacao()
+{
+    if (!update_button)
+        return;
+
+    HINTERNET session = WinHttpOpen(
+        L"PREVIEW-PGM-Update-Checker",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS,
+        0);
+
+    if (!session) {
+        blog(LOG_WARNING, "[PREVIEW PGM] Falha ao iniciar WinHTTP.");
+        return;
+    }
+
+    WinHttpSetTimeouts(session, 3000, 3000, 3000, 3000);
+
+    HINTERNET connection = WinHttpConnect(
+        session, L"api.github.com",
+        INTERNET_DEFAULT_HTTPS_PORT, 0);
+
+    HINTERNET request = connection
+        ? WinHttpOpenRequest(
+              connection, L"GET",
+              L"/repos/dablofilmes/PREVIEW-PGM/releases/latest",
+              nullptr, WINHTTP_NO_REFERER,
+              WINHTTP_DEFAULT_ACCEPT_TYPES,
+              WINHTTP_FLAG_SECURE)
+        : nullptr;
+
+    QByteArray response;
+
+    if (request) {
+        const wchar_t *headers =
+            L"Accept: application/vnd.github+json\r\n"
+            L"User-Agent: PREVIEW-PGM-Update-Checker\r\n";
+
+        BOOL ok = WinHttpAddRequestHeaders(
+            request, headers, static_cast<DWORD>(-1),
+            WINHTTP_ADDREQ_FLAG_ADD);
+
+        if (ok)
+            ok = WinHttpSendRequest(
+                request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+
+        if (ok)
+            ok = WinHttpReceiveResponse(request, nullptr);
+
+        DWORD status = 0;
+        DWORD statusSize = sizeof(status);
+
+        if (ok) {
+            ok = WinHttpQueryHeaders(
+                request,
+                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                WINHTTP_HEADER_NAME_BY_INDEX,
+                &status, &statusSize,
+                WINHTTP_NO_HEADER_INDEX);
+        }
+
+        if (ok && status == 200) {
+            DWORD available = 0;
+
+            while (WinHttpQueryDataAvailable(request, &available)
+                   && available > 0) {
+                QByteArray chunk(static_cast<qsizetype>(available), '\0');
+                DWORD downloaded = 0;
+
+                if (!WinHttpReadData(
+                        request, chunk.data(), available, &downloaded))
+                    break;
+
+                if (downloaded == 0)
+                    break;
+
+                chunk.resize(static_cast<qsizetype>(downloaded));
+                response.append(chunk);
+            }
+        } else {
+            blog(LOG_WARNING,
+                 "[PREVIEW PGM] Falha na consulta ao GitHub. HTTP: %lu",
+                 static_cast<unsigned long>(status));
+        }
+
+        WinHttpCloseHandle(request);
+    } else {
+        blog(LOG_WARNING, "[PREVIEW PGM] Falha ao criar requisição WinHTTP.");
+    }
+
+    if (connection)
+        WinHttpCloseHandle(connection);
+
+    WinHttpCloseHandle(session);
+
+    if (response.isEmpty()) {
+        blog(LOG_WARNING, "[PREVIEW PGM] Resposta vazia ao verificar atualizações.");
+        return;
+    }
+
+    QJsonParseError parseError{};
+    const QJsonDocument document =
+        QJsonDocument::fromJson(response, &parseError);
+
+    if (parseError.error != QJsonParseError::NoError ||
+        !document.isObject()) {
+        blog(LOG_WARNING, "[PREVIEW PGM] Resposta inválida do GitHub.");
+        return;
+    }
+
+    const QJsonObject release = document.object();
+    const QString latestTag =
+        release.value("tag_name").toString().trimmed();
+    const QString releaseUrl =
+        release.value("html_url").toString();
+
+    if (latestTag.isEmpty())
+        return;
+
+    QString currentText = QString::fromUtf8(PLUGIN_VERSION).trimmed();
+    QString latestText = latestTag;
+
+    if (currentText.startsWith(QLatin1Char('v'), Qt::CaseInsensitive))
+        currentText.remove(0, 1);
+
+    if (latestText.startsWith(QLatin1Char('v'), Qt::CaseInsensitive))
+        latestText.remove(0, 1);
+
+    const QVersionNumber currentVersion =
+        QVersionNumber::fromString(currentText);
+    const QVersionNumber latestVersion =
+        QVersionNumber::fromString(latestText);
+
+    if (currentVersion.isNull() || latestVersion.isNull()) {
+        blog(LOG_WARNING,
+             "[PREVIEW PGM] Não foi possível comparar versões.");
+        return;
+    }
+
+    if (QVersionNumber::compare(latestVersion, currentVersion) > 0) {
+        latest_release_url = releaseUrl;
+
+        update_button->setText(
+            QString("Atualizar (%1 disponível)").arg(latestTag));
+
+        update_button->setToolTip(
+            QString("Sua versão: %1 | Nova versão: %2")
+                .arg(QString::fromUtf8(PLUGIN_VERSION), latestTag));
+
+        update_button->setVisible(true);
+
+        blog(LOG_INFO, "[PREVIEW PGM] Nova versão disponível: %s",
+             latestTag.toUtf8().constData());
+    } else {
+        blog(LOG_INFO, "[PREVIEW PGM] Plugin atualizado. Versão atual: %s",
+             currentText.toUtf8().constData());
+    }
+}
+
 
 void configurarAtalhoEsc()
 {
@@ -571,7 +774,17 @@ void projetarTelaCheia()
 
     projecting = true;
 
-    // Leva a janela completa ao monitor selecionado.
+    // No modo de projeção, mantém somente título, status, vídeo,
+    // medidores e o botão para sair da tela cheia.
+    monitor_combo->hide();
+    project_button->hide();
+    audio_title->hide();
+    source_label->hide();
+    audio_source_combo->hide();
+    refresh_sources_button->hide();
+    close_fullscreen_button->show();
+
+    // Move a projeção para o monitor escolhido na janela de controle.
     showNormal();
     setGeometry(screen->geometry());
     showFullScreen();
@@ -583,6 +796,14 @@ void restaurarJanela()
         return;
 
     projecting = false;
+
+    close_fullscreen_button->hide();
+    monitor_combo->show();
+    project_button->show();
+    audio_title->show();
+    source_label->show();
+    audio_source_combo->show();
+    refresh_sources_button->show();
 
     showNormal();
     setGeometry(previousGeometry);
