@@ -39,7 +39,7 @@ Ideal para Monitor de Referência: Perfeito para ser enviado a um segundo ou ter
 ## 💡 Como Usar
 Abra o OBS Studio.
 
-No menu superior, vá em Ferramentas (Tools) e clique em Abrir Preview PGM.
+No menu superior, vá em Ferramentas (Tools) e clique em Abrir PREVIEW PGM.
 
 Nas configurações da janela:
 
@@ -47,7 +47,7 @@ Escolha qual fonte de áudio você deseja acompanhar no mixer integrado.
 
 Selecione em qual monitor a janela deve ser exibida ao entrar em modo Tela Cheia (Full Screen).
 
-Posicione ou ative a tela cheia no monitor de referência escolhido.
+Posicione ou ative a tela cheia no monitor de referência escolhido. Para sair do modo tela cheio pressione ESC.
 
 ---
 
